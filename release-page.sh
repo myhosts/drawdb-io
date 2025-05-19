@@ -27,10 +27,12 @@ npm run build
 cd dist
 rm -rf .git
 git init
+git remote add origin https://github.com/myhosts/drawdb-io.git || { echo "git remote add origin failed"; exit 1; }
+git branch -M gh-pages  || { echo "git branch -M gh-pages failed"; exit 1; }
 echo 'gh.drawdb.vhosts.top' > CNAME
-git add -A
-git commit -m "deploy commit $today_commit"
-git push -u origin gh-page --force
+git add -A || { echo "git add -A failed"; exit 1; }
+git commit -m "deploy commit $today_commit" || { echo "git commit failed"; exit 1; }
+git push -u origin gh-pages --force || { echo  "Git push failed"; exit 1; } 
 
 cd ..
 cd ..
