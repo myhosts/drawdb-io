@@ -1,0 +1,83 @@
+name: Auto Build & Deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # Step1 拉取当前仓库
+      - name: Checkout current repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.REPO_TOKEN }} 
+
+      # Step2 获取本地 currentcommit hash
+      - name: Get local commit hash
+        id: local
+        run: |
+          if [ -f "currentcommit" ]; then
+            LOCAL_SHA=$(cat currentcommit | tr -d '[:space:]')
+          else
+            LOCAL_SHA=""
+          fi
+          echo "sha=$LOCAL_SHA" >> $GITHUB_OUTPUT
+
+      # Step3 获取远程最新 hash
+      - name: Get remote latest SHA
+        id: remote
+        run: |
+          REMOTE_SHA=$(curl --silent "https://api.github.com/repos/drawdb-io/drawdb/commits" | jq -r '.[0].sha')
+          echo "sha=$REMOTE_SHA" >> $GITHUB_OUTPUT
+
+      # 一致 → 跳过
+      - name: Exit if same
+        if: steps.local.outputs.sha == steps.remote.outputs.sha
+        run: |
+          echo "✅ 本地与远程哈希一致，跳过执行"
+          exit 0
+
+      # Step4 拉取 drawdb 代码
+      - name: Checkout drawdb
+        uses: actions/checkout@v4
+        with:
+          repository: drawdb-io/drawdb
+          path: drawdb
+
+      # Step5 构建
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install & Build
+        run: |
+          cd drawdb
+          npm ci
+          npm run build
+
+      # Step6 发布 gh-pages
+      - name: Publish to gh-pages
+        uses: chihqiang/gh-pages-action@main
+        with:
+          publish_dir: drawdb/dist
+          target_branch: gh-pages
+          commit_message: ${{ steps.remote.outputs.sha }}
+          cname: gh.drawdb.zhiqiang.wang
+          token: ${{ secrets.REPO_TOKEN }} 
+
+      # Step7 写入最新 hash 并提交
+      - name: Update currentcommit file
+        run: |
+          echo "${{ steps.remote.outputs.sha }}" > currentcommit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add currentcommit
+          git commit -m "ci: update drawdb latest sha"
+          git push https://${{ secrets.REPO_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
