@@ -8,6 +8,13 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
+      # 获取远程最新 commit hash
+      - name: Get latest SHA
+        id: get_sha
+        run: |
+          SHA=$(curl --silent "https://api.github.com/repos/drawdb-io/drawdb/commits" | jq -r '.[0].sha')
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+
       # 拉取 drawdb 源码
       - name: Checkout drawdb
         uses: actions/checkout@v4
@@ -26,12 +33,12 @@ jobs:
           npm ci
           npm run build
 
-      # 发布到 gh-pages
+      # 发布到 gh-pages（commit 信息带 hash）
       - name: Publish to gh-pages
         uses: chihqiang/gh-pages-action@main
         with:
           publish_dir: dist
           target_branch: gh-pages
-          commit_message: Auto deploy
-          cname: gh.drawdb.zhiqiang.wang
+          commit_message: ${{ steps.get_sha.outputs.sha }}  # 这里是 hash
+          cname: example.com
           token: ${{ secrets.REPO_TOKEN }}
