@@ -40,5 +40,5 @@ jobs:
           publish_dir: dist
           target_branch: gh-pages
           commit_message: ${{ steps.get_sha.outputs.sha }}  # 这里是 hash
-          cname: example.com
+          cname: gh.drawdb.zhiqiang.wang
           token: ${{ secrets.REPO_TOKEN }}
